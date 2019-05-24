@@ -11,3 +11,18 @@ At the time of writing the following commands are implementen:
 
 * `{"command":"open"}`: opens the door
 * `{"command":"close"}`: closes the door
+
+## Incoming requests
+
+The incoming requests have the following structure
+
+```
+{
+  "username": "username",
+  "token": "slotmachien_token",
+  "text": "command"
+}
+```
+
+NOTICE: It might be obvious, but for obvious reasons the token should be changed on deployement. The
+token is stored in the TOKEN constant.
