@@ -26,7 +26,7 @@ bool skipRespHeaders(EthernetClient *client){
 
 // Authenticate against TOKEN
 bool authenticate(const char **token) {
-  if (strcmp(*token, TOKEN)) {
+  if (strcmp(*token, TOKEN)==0) {
     return true;
   } else {
     return false;
@@ -140,7 +140,7 @@ void handleCommand(const char **const command, int operTime) {
 
 void setup() {
   // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
-  door.attach(SERVO_PIN_A, 500, 2500);
+  door.attach(SERVO_PIN_A);
   halt();
 
   // Ethernet setup
@@ -160,7 +160,7 @@ void loop() {
   const char* command;
   bool processed = handleIcoming(&command);
   if (processed) {
-    handleCommand(&command, 500);
+    handleCommand(&command, 750);
     processed = false;
     setup();
   } else {
