@@ -26,3 +26,9 @@ The incoming requests have the following structure
 
 NOTICE: It might be obvious, but for obvious reasons the token should be changed on deployement. The
 token is stored in the TOKEN constant.
+
+
+## Maintainer
+
+Francis Begyn  
+francis.begyn@gmail.com
