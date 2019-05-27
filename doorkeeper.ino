@@ -16,7 +16,7 @@ PWMServo door;
 
 // Ethernet functions
 // Skip all the HTTP headers, straight to the body
-bool skipRespHeaders(EthernetClient *client){
+bool skipRespHeaders(EthernetClient* client){
   char endOfHeaders[] = "\r\n\r\n";
   bool skipped = client->find(endOfHeaders);
   if(!skipped){
@@ -25,7 +25,7 @@ bool skipRespHeaders(EthernetClient *client){
 }
 
 // Authenticate against TOKEN
-bool authenticate(const char **token) {
+bool authenticate(const char** token) {
   if (strcmp(*token, TOKEN)==0) {
     return true;
   } else {
@@ -33,8 +33,19 @@ bool authenticate(const char **token) {
   }
 }
 
+// verify if all json fields are present
+bool verifyData(StaticJsonDocument<256>* doc) {
+  bool userPresent = (*doc)["username"].isNull();
+  bool tokenPresent = (*doc)["token"].isNull();
+  bool textPresent = (*doc)["text"].isNull();
+  if (userPresent && tokenPresent && textPresent) {
+    return true;
+  }
+  return false;
+}
+
 // Process an incoming command request
-bool handleIcoming(const char **command){
+bool handleIcoming(const char** command){
   EthernetClient client = server.available();
   if(client && skipRespHeaders(&client)){
     StaticJsonDocument<256> doc;
@@ -48,6 +59,16 @@ bool handleIcoming(const char **command){
       client.stop();
       return false;
     }
+    /*bool dataPresent = verifyData(&doc);
+    if (!dataPresent) {
+      client.println("HTTP/1.1 500 ERROR");
+      client.println("Content-Type: text/html");
+      client.println("Connection: close");
+      client.println();
+      client.println("Not all data fields were present");
+      client.stop();
+      return false;
+    }*/
     const char *recvToken = doc["token"];
     bool auth = authenticate(&recvToken);
     if (auth) {
@@ -56,8 +77,7 @@ bool handleIcoming(const char **command){
       client.println("Content-Type: text/html");
       client.println("Connection: close");
       client.println();
-      client.print("JSON parsed: ");
-      client.println(*command);
+      client.print(*command);
       delay(10);
       client.stop();
       return true;
@@ -79,7 +99,7 @@ bool handleIcoming(const char **command){
 bool initEthernet(){
   // Network configuration
   byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xFA, 0x91};    // MAC address
-  IPAddress ip(10, 0, 1, 20);                           // IP address
+  IPAddress ip(10, 0, 1, 5);                           // IP address
   // Ethernet connection setup
   Ethernet.begin(mac, ip);
   return true;
@@ -108,23 +128,23 @@ void maintainEthernet(){
 
 /*
   Servo functions
-  1510 ms is hold pos
-  > 1515 -> close, CW from the back
-  < 1505 -> open, CCW from the back
+  94 ms is hold pos
+  > 94 -> open, CCW from the back
+  < 94 -> close, CW from the back
 */
 // Functional functions
 void openDoor() {
-  door.write(44);
+  door.write(4);
 }
 void closeDoor() {
-  door.write(134);
+  door.write(174);
 }
 void halt() {
   door.write(94);
 }
 
 // Process a command
-void handleCommand(const char **const command, int operTime) {
+void handleCommand(const char** const command, int operTime) {
   if(strcmp(*command,"open")==0){
     openDoor();
     delay(operTime);
@@ -160,14 +180,12 @@ void loop() {
   const char* command;
   bool processed = handleIcoming(&command);
   if (processed) {
-    handleCommand(&command, 750);
+    handleCommand(&command, 900);
     processed = false;
-    setup();
+    delay(100);
   } else {
     processed = false;
   }
-
-  // Wait for next loop
-  delay(100);
+  delay(50);
 }
 
