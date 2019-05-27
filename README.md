@@ -5,12 +5,12 @@ based microcontroller, ethernet shield (can be replaced by other networking gear
 servomotor.
 
 The Arduino hosts a simple webserver that responds to JSON requests. Prototyping makes uses of
-the `"command"` key.
+the `"text"` key.
 
 At the time of writing the following commands are implementen:
 
-* `{"command":"open"}`: opens the door
-* `{"command":"close"}`: closes the door
+* `{"text":"open"}`: opens the door
+* `{"text":"close"}`: closes the door
 
 ## Incoming requests
 
