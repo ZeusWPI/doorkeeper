@@ -45,17 +45,19 @@ bool verifyData(StaticJsonDocument<256>* doc) {
 }
 
 // Process an incoming command request
-bool handleIcoming(const char** command){
+bool handleIncoming(const char** command){
   EthernetClient client = server.available();
   if(client && skipRespHeaders(&client)){
     StaticJsonDocument<256> doc;
     DeserializationError error = deserializeJson(doc, client);
+    StaticJsonDocument<256> rsp;
     if (error) {
       client.println("HTTP/1.1 500 ERROR");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
       client.println();
-      client.println(error.c_str());
+      rsp["text"] = error.c_str();
+      serializeJson(rsp, client);
       client.stop();
       return false;
     }
@@ -72,12 +74,17 @@ bool handleIcoming(const char** command){
     const char *recvToken = doc["token"];
     bool auth = authenticate(&recvToken);
     if (auth) {
+      StaticJsonDocument<256> rsp;
       *command = doc["text"];
+      char* user = doc["username"];
+      char* msg = strcat(user,":");
+      char* rsp_msg = strcat(msg,*command);
+      rsp["text"] = rsp_msg;
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
       client.println();
-      client.print(*command);
+      serializeJson(rsp, client);
       delay(10);
       client.stop();
       return true;
@@ -86,7 +93,8 @@ bool handleIcoming(const char** command){
       client.println("Content-Type: text/html");
       client.println("Connection: close");
       client.println();
-      client.print("invalid_token_error");
+      rsp["text"] = "invalid token";
+      serializeJson(rsp, client);
       delay(10);
       client.stop();
       return false;
@@ -178,7 +186,7 @@ void loop() {
 
   // Open/close doors
   const char* command;
-  bool processed = handleIcoming(&command);
+  bool processed = handleIncoming(&command);
   if (processed) {
     handleCommand(&command, 900);
     processed = false;
