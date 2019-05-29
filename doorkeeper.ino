@@ -142,13 +142,18 @@ void maintainEthernet(){
 */
 // Functional functions
 void openDoor() {
-  door.write(4);
+  door.write(10);
 }
 void closeDoor() {
-  door.write(174);
+  door.write(170);
 }
 void halt() {
-  door.write(94);
+  door.write(91);
+}
+void lockDoor() {
+  closeDoor();
+  delay(1500);
+  halt();
 }
 
 // Process a command
@@ -168,7 +173,7 @@ void handleCommand(const char** const command, int operTime) {
 
 void setup() {
   // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
-  door.attach(SERVO_PIN_A);
+  door.attach(SERVO_PIN_A,500,2500);
   halt();
 
   // Ethernet setup
@@ -188,7 +193,7 @@ void loop() {
   const char* command;
   bool processed = handleIncoming(&command);
   if (processed) {
-    handleCommand(&command, 900);
+    handleCommand(&command, 1750);
     processed = false;
     delay(100);
   } else {
