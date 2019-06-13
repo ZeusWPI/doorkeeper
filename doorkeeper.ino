@@ -34,7 +34,7 @@ bool authenticate(char* token) {
 }
 
 // verify if all json fields are present
-bool verifyData(StaticJsonDocument<256>* doc) {
+bool verifyData(DynamicJsonDocument* doc) {
   bool userPresent = !(*doc)["username"].isNull();
   bool tokenPresent = !(*doc)["token"].isNull();
   bool textPresent = !(*doc)["text"].isNull();
@@ -45,19 +45,17 @@ bool verifyData(StaticJsonDocument<256>* doc) {
 }
 
 // Process an incoming command request
-bool handleIncoming(char** command){
+bool handleIncoming(char* command){
   EthernetClient client = server.available();
   if(client && skipRespHeaders(&client)){
-    StaticJsonDocument<256> doc;
+    DynamicJsonDocument doc(512);
     DeserializationError error = deserializeJson(doc, client);
-    StaticJsonDocument<256> rsp;
     if (error) {
       client.println("HTTP/1.1 500 ERROR");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
       client.println();
-      rsp["text"] = error.c_str();
-      serializeJson(rsp, client);
+      client.println(error.c_str());
       client.stop();
       return false;
     }
@@ -74,10 +72,11 @@ bool handleIncoming(char** command){
     const char *recvToken = doc["token"];
     bool auth = authenticate(recvToken);
     if (auth) {
-      *command = doc["text"];
+      //*command = doc["text"];
+      strcpy(command, doc["text"]);
       char* user = doc["username"];
       char* msg = strcat(user,":");
-      char* rsp_msg = strcat(msg,*command);
+      char* rsp_msg = strcat(msg,command);
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
@@ -185,10 +184,11 @@ void setup() {
 
   // Start the webserver
   server.begin();
+  Serial.println("Booting ...");
 }
 
 // Global variables for the loop
-char* rxCommand;
+char rxCommand[256];
 bool processed = false;
 
 void loop() {
@@ -196,7 +196,7 @@ void loop() {
   maintainEthernet();
 
   // Open/close doors
-  processed = handleIncoming(&rxCommand);
+  processed = handleIncoming(rxCommand);
   if (processed) {
       handleCommand(rxCommand, 1750);
     processed = false;
