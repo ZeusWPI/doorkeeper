@@ -25,8 +25,8 @@ bool skipRespHeaders(EthernetClient* client){
 }
 
 // Authenticate against TOKEN
-bool authenticate(const char** token) {
-  if (strcmp(*token, TOKEN)==0) {
+bool authenticate(char* token) {
+  if ((strcmp(token, MMTOKEN)==0) || (strcmp(token, SLACKTOKEN)==0))  {
     return true;
   } else {
     return false;
@@ -35,9 +35,9 @@ bool authenticate(const char** token) {
 
 // verify if all json fields are present
 bool verifyData(StaticJsonDocument<256>* doc) {
-  bool userPresent = (*doc)["username"].isNull();
-  bool tokenPresent = (*doc)["token"].isNull();
-  bool textPresent = (*doc)["text"].isNull();
+  bool userPresent = !(*doc)["username"].isNull();
+  bool tokenPresent = !(*doc)["token"].isNull();
+  bool textPresent = !(*doc)["text"].isNull();
   if (userPresent && tokenPresent && textPresent) {
     return true;
   }
@@ -45,7 +45,7 @@ bool verifyData(StaticJsonDocument<256>* doc) {
 }
 
 // Process an incoming command request
-bool handleIncoming(const char** command){
+bool handleIncoming(char** command){
   EthernetClient client = server.available();
   if(client && skipRespHeaders(&client)){
     StaticJsonDocument<256> doc;
@@ -61,7 +61,7 @@ bool handleIncoming(const char** command){
       client.stop();
       return false;
     }
-    /*bool dataPresent = verifyData(&doc);
+    bool dataPresent = verifyData(&doc);
     if (!dataPresent) {
       client.println("HTTP/1.1 500 ERROR");
       client.println("Content-Type: text/html");
@@ -70,21 +70,19 @@ bool handleIncoming(const char** command){
       client.println("Not all data fields were present");
       client.stop();
       return false;
-    }*/
+    }
     const char *recvToken = doc["token"];
-    bool auth = authenticate(&recvToken);
+    bool auth = authenticate(recvToken);
     if (auth) {
-      StaticJsonDocument<256> rsp;
       *command = doc["text"];
       char* user = doc["username"];
       char* msg = strcat(user,":");
       char* rsp_msg = strcat(msg,*command);
-      rsp["text"] = rsp_msg;
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
       client.println();
-      serializeJson(rsp, client);
+      client.println(rsp_msg);
       delay(10);
       client.stop();
       return true;
@@ -93,8 +91,7 @@ bool handleIncoming(const char** command){
       client.println("Content-Type: text/html");
       client.println("Connection: close");
       client.println();
-      rsp["text"] = "invalid token";
-      serializeJson(rsp, client);
+      client.println("Invalid token");
       delay(10);
       client.stop();
       return false;
@@ -148,24 +145,29 @@ void closeDoor() {
   door.write(170);
 }
 void halt() {
-  door.write(91);
+  door.write(94);
 }
 void lockDoor() {
   closeDoor();
-  delay(1500);
+  delay(2250);
   halt();
 }
 
 // Process a command
-void handleCommand(const char** const command, int operTime) {
-  if(strcmp(*command,"open")==0){
+void handleCommand(char* command, int operTime) {
+  if(strcmp(command,"open")==0){
     openDoor();
     delay(operTime);
     halt();
-  } else if(strcmp(*command,"close")==0){
+  } else if(strcmp(command,"close")==0) {
     closeDoor();
     delay(operTime);
     halt();
+  } else if(strcmp(command,"lock")==0) {
+    lockDoor();
+  } else if(strcmp(command,"delay")==0) {
+    delay(15000);
+    lockDoor();
   } else {
     halt();
   }
@@ -173,7 +175,7 @@ void handleCommand(const char** const command, int operTime) {
 
 void setup() {
   // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
-  door.attach(SERVO_PIN_A,500,2500);
+  door.attach(SERVO_PIN_A);
   halt();
 
   // Ethernet setup
@@ -185,19 +187,20 @@ void setup() {
   server.begin();
 }
 
+// Global variables for the loop
+char* rxCommand;
+bool processed = false;
+
 void loop() {
   // Maintain the ethernet connection
   maintainEthernet();
 
   // Open/close doors
-  const char* command;
-  bool processed = handleIncoming(&command);
+  processed = handleIncoming(&rxCommand);
   if (processed) {
-    handleCommand(&command, 1750);
+      handleCommand(rxCommand, 1750);
     processed = false;
     delay(100);
-  } else {
-    processed = false;
   }
   delay(50);
 }
