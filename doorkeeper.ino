@@ -2,9 +2,7 @@
 #include <SPI.h>
 #include <Ethernet2.h>
 #include <ArduinoJson.h>
-
-// token settings
-const char *TOKEN="foobar";
+#include "./tokens.h"
 
 // Initialize the Ethernet server library
 // with the IP address and port you want to use
@@ -16,7 +14,8 @@ PWMServo door;
 
 // Ethernet functions
 // Skip all the HTTP headers, straight to the body
-bool skipRespHeaders(EthernetClient* client){
+bool skipRespHeaders(EthernetClient* client)
+{
   char endOfHeaders[] = "\r\n\r\n";
   bool skipped = client->find(endOfHeaders);
   if(!skipped){
@@ -25,8 +24,9 @@ bool skipRespHeaders(EthernetClient* client){
 }
 
 // Authenticate against TOKEN
-bool authenticate(char* token) {
-  if ((strcmp(token, MMTOKEN)==0) || (strcmp(token, SLACKTOKEN)==0))  {
+bool authenticate(const char* token)
+{
+  if ((strncmp(token, MMTOKEN,64)==0) || (strncmp(token, SLACKTOKEN,64)==0))  {
     return true;
   } else {
     return false;
@@ -34,7 +34,8 @@ bool authenticate(char* token) {
 }
 
 // verify if all json fields are present
-bool verifyData(DynamicJsonDocument* doc) {
+bool verifyData(DynamicJsonDocument* doc)
+{
   bool userPresent = !(*doc)["username"].isNull();
   bool tokenPresent = !(*doc)["token"].isNull();
   bool textPresent = !(*doc)["text"].isNull();
@@ -45,10 +46,11 @@ bool verifyData(DynamicJsonDocument* doc) {
 }
 
 // Process an incoming command request
-bool handleIncoming(char* command){
+bool handleIncoming(char* command)
+{
   EthernetClient client = server.available();
   if(client && skipRespHeaders(&client)){
-    DynamicJsonDocument doc(512);
+    DynamicJsonDocument doc(256);
     DeserializationError error = deserializeJson(doc, client);
     if (error) {
       client.println("HTTP/1.1 500 ERROR");
@@ -69,11 +71,11 @@ bool handleIncoming(char* command){
       client.stop();
       return false;
     }
-    const char *recvToken = doc["token"];
+    const char* recvToken = doc["token"];
     bool auth = authenticate(recvToken);
     if (auth) {
       //*command = doc["text"];
-      strcpy(command, doc["text"]);
+      strncpy(command, doc["text"],8);
       char* user = doc["username"];
       char* msg = strcat(user,":");
       char* rsp_msg = strcat(msg,command);
@@ -100,7 +102,8 @@ bool handleIncoming(char* command){
   }
 }
 
-bool initEthernet(){
+bool initEthernet()
+{
   // Network configuration
   byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xFA, 0x91};    // MAC address
   IPAddress ip(10, 0, 1, 5);                           // IP address
@@ -110,7 +113,8 @@ bool initEthernet(){
 }
 
 // Maintain ethernet connection
-void maintainEthernet(){
+void maintainEthernet()
+{
   switch (Ethernet.maintain())
   {
     case 1:
@@ -137,34 +141,39 @@ void maintainEthernet(){
   < 94 -> close, CW from the back
 */
 // Functional functions
-void openDoor() {
+void openDoor()
+{
   door.write(10);
 }
-void closeDoor() {
+void closeDoor()
+{
   door.write(170);
 }
-void halt() {
+void halt()
+{
   door.write(94);
 }
-void lockDoor() {
+void lockDoor()
+{
   closeDoor();
   delay(2250);
   halt();
 }
 
 // Process a command
-void handleCommand(char* command, int operTime) {
-  if(strcmp(command,"open")==0){
+void handleCommand(char* command, int operTime)
+{
+  if(strncmp(command,"open",8)==0){
     openDoor();
     delay(operTime);
     halt();
-  } else if(strcmp(command,"close")==0) {
+  } else if(strncmp(command,"close",8)==0) {
     closeDoor();
     delay(operTime);
     halt();
-  } else if(strcmp(command,"lock")==0) {
+  } else if(strncmp(command,"lock",8)==0) {
     lockDoor();
-  } else if(strcmp(command,"delay")==0) {
+  } else if(strncmp(command,"delay",8)==0) {
     delay(15000);
     lockDoor();
   } else {
@@ -172,26 +181,35 @@ void handleCommand(char* command, int operTime) {
   }
 }
 
-void setup() {
+// Global variables for the loop
+char rxCommand[256];
+bool processed = false;
+
+void setup()
+{
+  //Serial.begin(9600);
+  //Serial.println("Booting up ...");
+
+  //Serial.println("Initialising servo controller ...");
   // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
   door.attach(SERVO_PIN_A);
   halt();
 
+  //Serial.println("Initialising internet ...");
   // Ethernet setup
   while(!initEthernet()){
     // If init fails, keep retrying
   }
 
+  //Serial.println("Starting webserver ...");
   // Start the webserver
   server.begin();
-  Serial.println("Booting ...");
+
+  //Serial.println("Doorkeeper: online");
 }
 
-// Global variables for the loop
-char rxCommand[256];
-bool processed = false;
-
-void loop() {
+void loop()
+{
   // Maintain the ethernet connection
   maintainEthernet();
 
@@ -204,4 +222,3 @@ void loop() {
   }
   delay(50);
 }
-
