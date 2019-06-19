@@ -141,18 +141,9 @@ void maintainEthernet()
   < 94 -> close, CW from the back
 */
 // Functional functions
-void openDoor()
-{
-  door.write(10);
-}
-void closeDoor()
-{
-  door.write(170);
-}
-void halt()
-{
-  door.write(94);
-}
+void openDoor()   {door.write(10);}
+void closeDoor()  {door.write(170);}
+void halt()       {door.write(94);}
 void lockDoor()
 {
   closeDoor();
