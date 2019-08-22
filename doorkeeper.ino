@@ -1,6 +1,6 @@
 #include <PWMServo.h>
 #include <SPI.h>
-#include <Ethernet2.h>
+#include <Ethernet.h>
 #include <ArduinoJson.h>
 #include "./tokens.h"
 
@@ -24,9 +24,9 @@ bool skipRespHeaders(EthernetClient* client)
 }
 
 // Authenticate against TOKEN
-bool authenticate(const char* token)
+bool authenticate(const String token)
 {
-    if ((strncmp(token, MMTOKEN,64)==0) || (strncmp(token, SLACKTOKEN,64)==0))  {
+    if (token.equals(MMTOKEN) || token.equals(SLACKTOKEN))  {
         return true;
     } else {
         return false;
@@ -46,7 +46,7 @@ bool verifyData(DynamicJsonDocument* doc)
 }
 
 // Process an incoming command request
-bool handleIncoming(char* command)
+bool handleIncoming(String command, String user)
 {
     EthernetClient client = server.available();
     if(client && skipRespHeaders(&client)){
@@ -71,13 +71,12 @@ bool handleIncoming(char* command)
             client.stop();
             return false;
         }
-        const char* recvToken = doc["token"];
+        const String recvToken = doc["token"];
         bool auth = authenticate(recvToken);
         if (auth) {
-            strncpy(command, doc["text"],8);
-            char* user = doc["username"];
-            char* msg = strcat(user,":");
-            char* rsp_msg = strcat(msg,command);
+            command = String((char*)doc["text"]);
+            user = String((char*)doc["username"]);
+            String rsp_msg = String(user+":"+command);
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: text/html");
             client.println("Connection: close");
@@ -97,6 +96,30 @@ bool handleIncoming(char* command)
             return false;
         }
     } else {
+        return false;
+    }
+}
+
+// Sends the processed commands back to mattermore to send to the channel
+bool mattermoreResponse(String command, String user)
+{
+    EthernetClient client;
+    IPAddress server(10,0,0,130);
+    Serial.println(client.connect(server, 5000));
+    if (client.connect(server, 5000))
+    {
+        client.println("POST /doorkeeper HTTP/1.1");
+        client.println("Accept: */*");
+        client.println("Connection: keep-alive");
+        client.println("Content-Type: application/x-www-form-urlencoded; charset=utf-8");
+        client.println();
+        String msg = String("token="+DOORKEEPER_TOKEN+"&command="+command+"&user="+user);
+        Serial.println(msg);
+        client.println(msg);
+        client.stop();
+        return true;
+    } else {
+        Serial.println("Connection failed");
         return false;
     }
 }
@@ -162,19 +185,19 @@ void triggerDelayedButton(void)
 }
 
 // Process a command
-void handleCommand(char* command, int operTime)
+void handleCommand(String command, int operTime)
 {
-    if(strncmp(command,"open",8)==0){
+    if(command.equals("open")){
         openDoor();
         delay(operTime);
         halt();
-    } else if(strncmp(command,"close",8)==0) {
+    } else if(command.equals("close")) {
         closeDoor();
         delay(operTime);
         halt();
-    } else if(strncmp(command,"lock",8)==0) {
+    } else if(command.equals("lock")) {
         lockDoor();
-    } else if(strncmp(command,"delay",8)==0) {
+    } else if(command.equals("delay")) {
         delayedClose(10000);
     } else {
         halt();
@@ -190,13 +213,14 @@ unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;
 
 // Global variables for the loop
-char rxCommand[256];
+String rxCommand;
+String username;
 bool processed = false;
 
 void setup()
 {
-    //Serial.begin(9600);
-    //Serial.println("Booting up ...");
+    Serial.begin(9600);
+    Serial.println("Booting up ...");
 
     //Serial.println("Initialising servo controller ...");
     // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
@@ -225,9 +249,10 @@ void loop()
     maintainEthernet();
 
     // Open/close doors
-    processed = handleIncoming(rxCommand);
+    processed = handleIncoming(rxCommand, username);
     if (processed) {
         handleCommand(rxCommand, 1750);
+        mattermoreResponse(rxCommand, username);
         processed = false;
         delay(100);
     }
