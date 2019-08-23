@@ -8,6 +8,7 @@
 // with the IP address and port you want to use
 // (port 80 is default for HTTP):
 EthernetServer server(80);
+EthernetClient client;
 
 // Servo settings
 PWMServo door;
@@ -48,7 +49,7 @@ bool verifyData(DynamicJsonDocument* doc)
 // Process an incoming command request
 bool handleIncoming(String command, String user)
 {
-    EthernetClient client = server.available();
+    client = server.available();
     if(client && skipRespHeaders(&client)){
         DynamicJsonDocument doc(256);
         DeserializationError error = deserializeJson(doc, client);
@@ -103,8 +104,8 @@ bool handleIncoming(String command, String user)
 // Sends the processed commands back to mattermore to send to the channel
 bool mattermoreResponse(String command, String user)
 {
-    EthernetClient client;
     IPAddress server(10,0,0,130);
+    delay(250);
     Serial.println(client.connect(server, 5000));
     if (client.connect(server, 5000))
     {
@@ -118,10 +119,10 @@ bool mattermoreResponse(String command, String user)
         client.println(msg);
         client.stop();
         return true;
-    } else {
-        Serial.println("Connection failed");
-        return false;
     }
+    Serial.println("Connection failed");
+    client.stop();
+    return false;
 }
 
 bool initEthernet()
@@ -129,8 +130,12 @@ bool initEthernet()
     // Network configuration
     byte mac[] = {0x90, 0xA2, 0xDA, 0x10, 0xFA, 0x91};    // MAC address
     IPAddress ip(10, 0, 1, 5);                           // IP address
+    IPAddress subnetMask(255,255,0,0);
+    IPAddress gateway(10,0,0,1);
     // Ethernet connection setup
     Ethernet.begin(mac, ip);
+    Ethernet.setSubnetMask(subnetMask);
+    Ethernet.setGatewayIP(gateway);
     return true;
 }
 
@@ -221,6 +226,7 @@ void setup()
 {
     Serial.begin(9600);
     Serial.println("Booting up ...");
+    delay(1000);
 
     //Serial.println("Initialising servo controller ...");
     // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
