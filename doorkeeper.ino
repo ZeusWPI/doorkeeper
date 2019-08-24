@@ -47,7 +47,7 @@ bool verifyData(DynamicJsonDocument* doc)
 }
 
 // Process an incoming command request
-bool handleIncoming(String command, String user)
+bool handleIncoming(String *command, String *user)
 {
     client = server.available();
     if(client && skipRespHeaders(&client)){
@@ -75,9 +75,9 @@ bool handleIncoming(String command, String user)
         const String recvToken = doc["token"];
         bool auth = authenticate(recvToken);
         if (auth) {
-            command = String((char*)doc["text"]);
-            user = String((char*)doc["username"]);
-            String rsp_msg = String(user+":"+command);
+            *command = String((char*)doc["text"]);
+            *user = String((char*)doc["username"]);
+            String rsp_msg = String(*user+":"+*command);
             client.println("HTTP/1.1 200 OK");
             client.println("Content-Type: text/html");
             client.println("Connection: close");
@@ -102,20 +102,27 @@ bool handleIncoming(String command, String user)
 }
 
 // Sends the processed commands back to mattermore to send to the channel
-bool mattermoreResponse(String command, String user)
+bool mattermoreResponse(String *command, String *user)
 {
     IPAddress server(10,0,0,130);
     delay(250);
-    Serial.println(client.connect(server, 5000));
     if (client.connect(server, 5000))
     {
+        String msg = String("command="+*command+"&user="+*user+"&token="+DOORKEEPER_TOKEN);
+        String cntLenght = String("Content-Lengths "+msg.length());
+        String host = String("Host "+server);
+        String HostHeader = String(host+":"+5000);
         client.println("POST /doorkeeper HTTP/1.1");
+        client.println("User-Agent: Arduino/1.0");
+        client.println("Host: 10.0.0.130");
         client.println("Accept: */*");
+        client.println("Accept-Encoding: gzip, deflate");
         client.println("Connection: keep-alive");
         client.println("Content-Type: application/x-www-form-urlencoded; charset=utf-8");
+        client.print("Content-Length: ");
+        client.println(msg.length());
+        //client.println("User-Agent: HTTPie/1.0.2");
         client.println();
-        String msg = String("token="+DOORKEEPER_TOKEN+"&command="+command+"&user="+user);
-        Serial.println(msg);
         client.println(msg);
         client.stop();
         return true;
@@ -190,19 +197,19 @@ void triggerDelayedButton(void)
 }
 
 // Process a command
-void handleCommand(String command, int operTime)
+void handleCommand(String *command, int operTime)
 {
-    if(command.equals("open")){
+    if(command->equals("open")){
         openDoor();
         delay(operTime);
         halt();
-    } else if(command.equals("close")) {
+    } else if(command->equals("close")) {
         closeDoor();
         delay(operTime);
         halt();
-    } else if(command.equals("lock")) {
+    } else if(command->equals("lock")) {
         lockDoor();
-    } else if(command.equals("delay")) {
+    } else if(command->equals("delay")) {
         delayedClose(10000);
     } else {
         halt();
@@ -255,10 +262,10 @@ void loop()
     maintainEthernet();
 
     // Open/close doors
-    processed = handleIncoming(rxCommand, username);
+    processed = handleIncoming(&rxCommand, &username);
     if (processed) {
-        handleCommand(rxCommand, 1750);
-        mattermoreResponse(rxCommand, username);
+        handleCommand(&rxCommand, 1750);
+        mattermoreResponse(&rxCommand, &username);
         processed = false;
         delay(100);
     }
