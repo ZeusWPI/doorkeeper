@@ -180,14 +180,14 @@ void lockDoor()
 }
 void delayedClose(int dur)
 {
-    delay(dur);
+    for (int i = 0; i < dur; i++)
+    {
+        door.write(80);
+        delay(50);
+        halt();
+        delay(950);
+    }
     lockDoor();
-}
-
-void triggerDelayedButton(void)
-{
-    Serial.println("Closing door");
-    delayedClose(1);
 }
 
 // Process a command
@@ -204,7 +204,7 @@ void handleCommand(String *command, int operTime)
     } else if(command->equals("lock")) {
         lockDoor();
     } else if(command->equals("delay")) {
-        delayedClose(10000);
+        delayedClose(10);
     } else {
         halt();
     }
@@ -225,9 +225,9 @@ bool processed = false;
 
 void setup()
 {
-    Serial.begin(9600);
-    Serial.println("Booting up ...");
-    delay(1000);
+    //Serial.begin(9600);
+    //Serial.println("Booting up ...");
+    //delay(1000);
 
     //Serial.println("Initialising servo controller ...");
     // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
