@@ -104,30 +104,24 @@ bool handleIncoming(String *command, String *user)
 // Sends the processed commands back to mattermore to send to the channel
 bool mattermoreResponse(String *command, String *user)
 {
-    IPAddress server(10,0,0,130);
-    delay(250);
-    if (client.connect(server, 5000))
+    if (client.connect(MATTERMORE_SERVER_HOST, MATTERMORE_SERVER_PORT))
     {
         String msg = String("command="+*command+"&user="+*user+"&token="+DOORKEEPER_TOKEN);
-        String cntLenght = String("Content-Lengths "+msg.length());
-        String host = String("Host "+server);
-        String HostHeader = String(host+":"+5000);
         client.println("POST /doorkeeper HTTP/1.1");
         client.println("User-Agent: Arduino/1.0");
-        client.println("Host: 10.0.0.130");
+        client.println("Host: mattermost.zeus.gent");
         client.println("Accept: */*");
         client.println("Accept-Encoding: gzip, deflate");
-        client.println("Connection: keep-alive");
+        client.println("Connection: close");
         client.println("Content-Type: application/x-www-form-urlencoded; charset=utf-8");
         client.print("Content-Length: ");
         client.println(msg.length());
-        //client.println("User-Agent: HTTPie/1.0.2");
         client.println();
         client.println(msg);
+        delay(250);
         client.stop();
         return true;
     }
-    Serial.println("Connection failed");
     client.stop();
     return false;
 }
@@ -264,8 +258,8 @@ void loop()
     // Open/close doors
     processed = handleIncoming(&rxCommand, &username);
     if (processed) {
-        handleCommand(&rxCommand, 1750);
         mattermoreResponse(&rxCommand, &username);
+        handleCommand(&rxCommand, 1750);
         processed = false;
         delay(100);
     }
@@ -273,7 +267,8 @@ void loop()
     buttonState = digitalRead(buttonPin);
     if (buttonState != lastButtonState) {
         if (buttonState == LOW) {
-            delayedClose(10000);
+            mattermoreResponse(&String("delay"),&String("Doorkeeper"));
+            delayedClose(10);
         }
     }
     lastButtonState = buttonState;
