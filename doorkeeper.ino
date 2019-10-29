@@ -146,16 +146,16 @@ void maintainEthernet()
     switch (Ethernet.maintain())
     {
         case 1:
-            Serial.println("Error: renewed fail");
+            //Serial.println("Error: renewed fail");
             break;
         case 2:
-            Serial.println("Renewed success");
+            //Serial.println("Renewed success");
             break;
         case 3:
-            Serial.println("Error: rebind fail");
+            //Serial.println("Error: rebind fail");
             break;
         case 4:
-            Serial.println("Rebind success");
+            //Serial.println("Rebind success");
             break;
         default:
             break;
