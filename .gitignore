@@ -2,3 +2,4 @@
 *.hex
 hardcopy*
 secrets.txt
+tokens.h
