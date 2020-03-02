@@ -211,12 +211,11 @@ void handleCommand(String *command, int operTime)
 }
 
 // button variables
-const int buttonPin = 3;
-int buttonState;
-int lastButtonState = LOW;
-
-unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;
+// const int buttonPin = 3;
+// int buttonState;
+// int lastButtonState = LOW;
+// unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+// unsigned long debounceDelay = 50;
 
 // Global variables for the loop
 String rxCommand;
@@ -231,6 +230,7 @@ void setup()
 
     //Serial.println("Initialising servo controller ...");
     // Config servo motor control pin, 500-2500 is for the 10kg/cm servo
+    // SERVO_PIN_A = pin 9 see http://arduiniana.org/libraries/pwmservo/
     door.attach(SERVO_PIN_A);
     halt();
 
@@ -245,7 +245,7 @@ void setup()
     server.begin();
 
     // button for delayed close
-    pinMode(buttonPin, INPUT);
+    // pinMode(buttonPin, INPUT);
 
     //Serial.println("Doorkeeper: online");
 }
@@ -264,13 +264,14 @@ void loop()
         delay(100);
     }
 
-    buttonState = digitalRead(buttonPin);
-    if (buttonState != lastButtonState) {
-        if (buttonState == LOW) {
-            mattermoreResponse(&String("delay"),&String("Doorkeeper"));
-            delayedClose(10);
-        }
-    }
-    lastButtonState = buttonState;
-    delay(50);
+    // Remove the button, it's confusing and not used
+    //buttonState = digitalRead(buttonPin);
+    //if (buttonState != lastButtonState) {
+    //    if (buttonState == LOW) {
+    //        mattermoreResponse(&String("delay"),&String("Doorkeeper"));
+    //        delayedClose(10);
+    //    }
+    //}
+    //lastButtonState = buttonState;
+    //delay(50);
 }
